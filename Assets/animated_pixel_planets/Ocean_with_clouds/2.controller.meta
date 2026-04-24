@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bb5d5c66fd216a64e9c8c592ef67119b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 9100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 185133
+  packageName: Animated pixel art planets
+  packageVersion: 1.0
+  assetPath: Assets/animated_pixel_planets/Ocean_with_clouds/2.controller
+  uploadId: 406685

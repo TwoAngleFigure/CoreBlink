@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1462921864204052344
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5187063833693571937}
+  - component: {fileID: 7825592264484986751}
+  m_Layer: 0
+  m_Name: FlatformGenerator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5187063833693571937
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1462921864204052344}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.578, y: -5.03299, z: 20}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7825592264484986751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1462921864204052344}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc796f7c4df8905449a00e1330e77f9c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TileGridGenerator
+  _tilePrefab: {fileID: 919132149155446097, guid: 84436b30dd891bc43b11e2bfdc6a9d5f, type: 3}
+  _innerMaterial: {fileID: 2100000, guid: b4f926f895239e34e924f870f00b24d7, type: 2}
+  _outerMaterial: {fileID: 2100000, guid: a861e06d1ac9e7b44b9953dd5beeff64, type: 2}
+  _floorsParent: {fileID: 0}
+  _gridWidth: 3
+  _gridHeight: 5
+  _outLineMode: 0
+  _isEndFloor: 0
