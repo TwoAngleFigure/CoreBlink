@@ -5,9 +5,11 @@
 Core Blink
 
 Overview
+
 Core Blink is a hardcore platformer set in a dark, atmospheric sci-fi universe. Navigate through treacherous cosmic environments where precision and timing are everything.
 
 Key Features
+
 Hardcore Platforming: Challenging level design that rewards skill and persistence.
 
 Sci-Fi Atmosphere: Explore the depths of space with a distinct dark aesthetic.
@@ -15,4 +17,5 @@ Sci-Fi Atmosphere: Explore the depths of space with a distinct dark aesthetic.
 Pixel Art Visuals: Stylized pixel graphics designed for high-fidelity rendering.
 
 Technical Details
+
 Engine: Unity
