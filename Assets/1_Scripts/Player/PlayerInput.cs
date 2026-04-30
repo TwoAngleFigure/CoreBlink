@@ -9,8 +9,12 @@ public class PlayerInput : MonoBehaviour
     InputAction _jumpAction;
     InputAction _abilityAction;
     InputAction _mousePosAction;
+    InputAction _interactionAction;
 
     public BaseMovementState _moveState;
+
+    // ── 상호작용 ──
+    private IInteractable _currentInteractable;
 
     [Header("Move Direction")]
     [SerializeField] InputData inputData;
@@ -38,6 +42,7 @@ public class PlayerInput : MonoBehaviour
         _jumpAction = _action.PlayerActionMap.Jump;
         _abilityAction = _action.PlayerActionMap.Ability;
         _mousePosAction = _action.PlayerActionMap.MousePos;
+        _interactionAction = _action.PlayerActionMap.Interaction;
 
         //data
         inputData.rigi = GetComponent<Rigidbody>();
@@ -57,26 +62,34 @@ public class PlayerInput : MonoBehaviour
         _jumpAction.Enable();
         _abilityAction.Enable();
         _mousePosAction.Enable();
+        if (_interactionAction != null) _interactionAction.Enable();
 
         _jumpAction.started  += OnJumpStarted;
         _jumpAction.canceled += OnJumpCanceled;
         _abilityAction.performed += OnAbility;
+        if (_interactionAction != null) _interactionAction.performed += OnInteraction;
     }
 
     public void OnDisable()
     {
+        if (_action == null) return;
+
         _jumpAction.started  -= OnJumpStarted;
         _jumpAction.canceled -= OnJumpCanceled;
         _abilityAction.performed -= OnAbility;
+        if (_interactionAction != null) _interactionAction.performed -= OnInteraction;
 
         _movementAction.Disable();
         _jumpAction.Disable();
         _abilityAction.Disable();
         _mousePosAction.Disable();
+        if (_interactionAction != null) _interactionAction.Disable();
     }
 
     void Update()
     {
+        if (_action == null) return;
+
         inputData.inputVector    = _movementAction.ReadValue<Vector2>();
         inputData.mouseScreenPos = _mousePosAction.ReadValue<Vector2>();
         UpdateDirection();
@@ -129,6 +142,31 @@ public class PlayerInput : MonoBehaviour
     private void OnAbility(InputAction.CallbackContext context)
     {
         _moveState.Ability();
+    }
+
+    // ── 상호작용 ──
+    public void SetInteractable(IInteractable interactable)
+    {
+        _currentInteractable = interactable;
+        _currentInteractable.OnEnterRange();
+    }
+
+    public void ClearInteractable(IInteractable interactable)
+    {
+        // 현재 대상과 동일한 경우에만 해제 (다른 영역에서 새 대상이 이미 설정됐을 수 있음)
+        if (_currentInteractable == interactable)
+        {
+            _currentInteractable.OnExitRange();
+            _currentInteractable = null;
+        }
+    }
+
+    private void OnInteraction(InputAction.CallbackContext context)
+    {
+        if (_currentInteractable != null)
+        {
+            _currentInteractable.Interact();
+        }
     }
 
     private void UpdateDirection()

@@ -2,64 +2,96 @@ using UnityEngine;
 
 public class PlayerManager : MonoBehaviour
 {
-    PlayerInput input;
-    PlayerLook look;
-    PlayerObjectDetection detection;
+    private PlayerInput _input;
+    private PlayerLook _look;
+    private PlayerObjectDetection _detection;
 
     bool _isDead = false;
+    bool _isInitialized = false;
+
+    // ── Getter (SceneContext에서 접근용) ──
+    public PlayerInput Input => _input;
+    public PlayerLook Look => _look;
+    public PlayerObjectDetection Detection => _detection;
 
     public void Awake()
     {
-        GameManager.Instance.OnInitialize += Initialize;
+        // GameManager보다 Awake가 먼저 호출될 수 있으므로 null 체크
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnInitialize += Initialize;
+        }
+    }
+
+    private void Start()
+    {
+        // Awake 시점에 GameManager가 없었다면 Start에서 직접 초기화
+        if (_isInitialized == false && GameManager.Instance != null)
+        {
+            Initialize();
+        }
     }
 
     public void Initialize()
     {
+        if (_isInitialized == true) return;
+        _isInitialized = true;
+
         DontDestroyOnLoad(gameObject);
 
-        if (input == null) input = GetComponent<PlayerInput>();
-        input.Initialize();
+        if (_input == null) _input = GetComponent<PlayerInput>();
+        _input.Initialize();
 
-        if (look == null) look = GetComponent<PlayerLook>();
-        look.Initialize();
+        if (_look == null) _look = GetComponent<PlayerLook>();
+        _look.Initialize();
 
-        if (detection == null) detection = GetComponent<PlayerObjectDetection>();
+        if (_detection == null) _detection = GetComponent<PlayerObjectDetection>();
 
-        detection.GroundAction += input.ChangePlayerState;
-        detection.obstacleDetected += OnObstacleDetected;
-        detection.CollisionDetected += OnCollisionDetected;
+        _detection.GroundAction += _input.ChangePlayerState;
+        _detection.obstacleDetected += OnObstacleDetected;
+        _detection.CollisionDetected += OnCollisionDetected;
+        _detection.InteractionEnter += _input.SetInteractable;
+        _detection.InteractionExit += _input.ClearInteractable;
 
-        GameManager.Instance.OnStageClear += (LevelData data) => input.SetInputLock(true);
-
-        GameManager.Instance.OnSceneChange += () => GameManager.Instance.PlayerRespawn(this);
+        // 씬 전환 시 기본 상태 리셋 (명명 메서드로 해제 가능)
         GameManager.Instance.OnSceneChange += ResetPlayerState;
-        BaseMovementState state = Mapper.AbillityTypeMapper(AbillityType.None);
-        GameManager.Instance.OnSceneChange += () => PlayerChangeAbillity(state);
+        GameManager.Instance.OnSceneChange += ResetDefaultMovementState;
     }
 
     private void FixedUpdate()
     {
         if (_isDead) return;
 
-        input.OnFixedTick();
-        detection.CheckGroundState();
-        input._moveState.Movement();
+        _input.OnFixedTick();
+        _detection.CheckGroundState();
+        _input._moveState.Movement();
 
-        if (input.InputData.isJumping)
-            input._moveState.JumpHold();
+        if (_input.InputData.isJumping)
+            _input._moveState.JumpHold();
 
-        input._moveState.FallUpdate();
-        look.UpdateRotation();
+        _input._moveState.FallUpdate();
+        _look.UpdateRotation();
+
+        // 어빌리티 사용 가능 여부를 커서 파티클에 반영
+        if (MouseCursorTracker.Instance != null)
+        {
+            MouseCursorTracker.Instance.UpdateAbilityColorState(
+                _input._moveState.IsAirAbilityUsed);
+        }
     }
 
     public void PlayerChangeAbillity(BaseMovementState state)
     {
-        input.SetMovementState(state);
+        _input.SetMovementState(state);
 
-        if (state.AbillityType == AbillityType.None)
-            look.SetCoreColor("#FFFFFF");
-        else if (state.AbillityType == AbillityType.Dash)
-            look.SetCoreColor("#00D3FF");
+        state.OnAfterimageStart = _look.StartAfterimage;
+        state.OnAfterimageStop = _look.StopAfterimage;
+
+        // 어빌리티 색상을 MouseCursorTracker 파티클로 전달
+        if (MouseCursorTracker.Instance != null)
+        {
+            MouseCursorTracker.Instance.SetAbilityColor(state.AbillityType);
+        }
     }
 
     private void OnObstacleDetected(bool tri)
@@ -67,38 +99,64 @@ public class PlayerManager : MonoBehaviour
         if (tri && _isDead == false)
         {
             _isDead = true;
-            input.SetInputLock(true);
-            look.PlayerDeadEffect(true, () =>
+            _input.SetInputLock(true);
+            _look.PlayerDeadEffect(true, () =>
             {
-                GameManager.Instance.OnPlayerDeath?.Invoke(this);
+                // 현재 씬이 게임플레이 씬이면 사망 이벤트 전달
+                IGameplaySceneHandler handler =
+                    GameManager.Instance.CurrentContext as IGameplaySceneHandler;
+                if (handler != null)
+                {
+                    handler.OnPlayerDeath?.Invoke(this);
+                }
             });
         }
     }
 
     private void OnCollisionDetected()
     {
-        if (input != null && input._moveState != null)
+        if (_input != null && _input._moveState != null)
         {
-            input._moveState.CancelAbility();
+            _input._moveState.CancelAbility();
         }
+    }
+
+    /// <summary>
+    /// 씬 전환 시 PlayerInput의 BaseMovementState를 기본(None)으로 리셋합니다.
+    /// </summary>
+    public void ResetDefaultMovementState()
+    {
+        BaseMovementState defaultState = Mapper.AbillityTypeMapper(AbillityType.None);
+        PlayerChangeAbillity(defaultState);
     }
 
     public void ResetPlayerState()
     {
-        if (input != null && input.InputData != null)
+        if (_input != null && _input.InputData != null)
         {
-            input.InputData.camera = Camera.main;
+            _input.InputData.camera = Camera.main;
         }
 
-        input.SetInputLock(false);
-        look.ResetLook();
+        _input.SetInputLock(false);
+        _look.ResetLook();
         _isDead = false;
     }
 
     private void OnDestroy()
     {
-        detection.obstacleDetected -= OnObstacleDetected;
-        detection.GroundAction -= input.ChangePlayerState;
-        detection.CollisionDetected -= OnCollisionDetected;
+        if (_detection != null)
+        {
+            _detection.obstacleDetected -= OnObstacleDetected;
+            _detection.GroundAction -= _input.ChangePlayerState;
+            _detection.CollisionDetected -= OnCollisionDetected;
+            _detection.InteractionEnter -= _input.SetInteractable;
+            _detection.InteractionExit -= _input.ClearInteractable;
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnSceneChange -= ResetPlayerState;
+            GameManager.Instance.OnSceneChange -= ResetDefaultMovementState;
+        }
     }
 }

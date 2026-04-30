@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b77a33f16de29d4580d4e0c205838b3, type: 3}
+  m_Name: Skin_Hex
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLookData
+  mesh: {fileID: 4711208715938537054, guid: af47bf08bfc3db549ae67975180ae30c, type: 3}
+  shapeAngle: 60
+  icon: {fileID: 21300000, guid: 0f515d1c737645043a2328cf35413b1c, type: 3}

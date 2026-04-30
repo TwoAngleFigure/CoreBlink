@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1d0a7806b3651bf41b42759854b7d779, type: 3}
   m_Name: New Save Data
   m_EditorClassIdentifier: Assembly-CSharp::SaveData
-  isTutorialClear: 0
-  isLevelOneClear: 0
+  isTutorialClear: 1
+  isLevelOneClear: 1

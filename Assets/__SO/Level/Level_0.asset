@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_0
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   _isClear: 0
-  _clearTime: 35.106636
+  _clearTime: Infinity
   _totalDeathCount: 0
-  _levelName: ???
+  _levelName: Old Base
   _sceneName: Level_Tutorial

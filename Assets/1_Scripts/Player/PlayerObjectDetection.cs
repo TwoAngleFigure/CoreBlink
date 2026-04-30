@@ -11,6 +11,15 @@ public class PlayerObjectDetection : MonoBehaviour
     public LayerMask CollisionLayer;
     public Action CollisionDetected;
 
+    [Header("Interaction")]
+    [SerializeField] private LayerMask _interactionLayer;
+    public Action<IInteractable> InteractionEnter;
+    public Action<IInteractable> InteractionExit;
+
+    [Header("Detection Collider")]
+    [Tooltip("감지에 사용되는 콜라이더. 컷신 등에서 비활성화하여 상호작용/장애물 감지를 차단합니다.")]
+    [SerializeField] private Collider _detectionCollider;
+
     [Header("Ground Check")]
     [SerializeField] float _groundCheckDistance = 0.2f;
     [SerializeField] Vector3 _groundCheckOffset1 = Vector3.zero;
@@ -20,11 +29,48 @@ public class PlayerObjectDetection : MonoBehaviour
     bool _isGround = false;
     public Action<bool> GroundAction;
 
+    /// <summary>
+    /// 감지 콜라이더의 활성/비활성을 설정합니다.
+    /// 컷신, UI 전환 등 상호작용을 차단해야 할 때 사용합니다.
+    /// </summary>
+    public void SetDetectionEnabled(bool isEnabled)
+    {
+        if (_detectionCollider != null)
+        {
+            _detectionCollider.enabled = isEnabled;
+        }
+    }
+
     public void OnTriggerEnter(Collider other)
     {
         if (((1 << other.gameObject.layer) & obstacleLayer) != 0)
         {
             obstacleDetected?.Invoke(true);
+        }
+
+        // 상호작용 오브젝트 감지
+        if (((1 << other.gameObject.layer) & _interactionLayer) != 0)
+        {
+            InteractionTrigger trigger = other.GetComponent<InteractionTrigger>();
+            if (trigger != null && trigger.Interactable != null)
+            {
+                trigger.ShowHint();
+                InteractionEnter?.Invoke(trigger.Interactable);
+            }
+        }
+    }
+
+    public void OnTriggerExit(Collider other)
+    {
+        // 상호작용 영역 이탈
+        if (((1 << other.gameObject.layer) & _interactionLayer) != 0)
+        {
+            InteractionTrigger trigger = other.GetComponent<InteractionTrigger>();
+            if (trigger != null && trigger.Interactable != null)
+            {
+                trigger.HideHint();
+                InteractionExit?.Invoke(trigger.Interactable);
+            }
         }
     }
 

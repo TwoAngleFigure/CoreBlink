@@ -1,56 +1,48 @@
-using UnityEngine;
-using System.Collections;
-using UnityEngine.SceneManagement;
 using System;
+using System.Collections;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// 전역 게임 매니저. 씬 전환과 BaseSceneContext 라이프사이클 관리만 담당합니다.
+/// 게임플레이 로직(사망, 리스폰, 맵 전환, 클리어)은 GameplaySceneContext에 위임합니다.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    // ── 이벤트 ──
     public Action OnInitialize;
     public Action OnSceneChange;
-    public Action<PlayerManager> OnPlayerDeath;
 
-    [Header("LevelData")]
-    public LevelData levelData;
-    float currentTime;
+    // ── 영구 참조 ──
+    [SerializeField] private FadeUI _fadeUI;
 
-    [field: SerializeField]
-    public MapData CurrentMap { get; private set; }
+    // ── 현재 SceneContext ──
+    private BaseSceneContext _currentContext;
+    public BaseSceneContext CurrentContext => _currentContext;
 
-    [Header("Respawn")]
-    public GameObject respawnSpot;
-    public GameObject myRespawnSpot;
+    // ── Getter ──
+    public FadeUI FadeUI => _fadeUI;
 
-    bool _isTransitioning;
-
-    [Header("Stage Clear")]
-    public Action<LevelData> OnStageClear;
-    [SerializeField] string _levelSelectSceneName = "Lobby";
-    public FadeUI _fadeUI;
-
-    public void Awake()
+    private void Awake()
     {
-        if(Instance == null) 
-        { 
+        if (Instance == null)
+        {
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
-
-        OnPlayerDeath += HandlePlayerDeath;
-
-        Cursor.visible = false;
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
     }
 
-    public void Start()
+    private void Start()
     {
         OnInitialize?.Invoke();
-        LoadSceneWithFade("_Title");
-    }
-
-    public void Update()
-    {
-        currentTime += Time.deltaTime;
+        LoadTitleScene();
     }
 
     void OnEnable()
@@ -68,130 +60,40 @@ public class GameManager : MonoBehaviour
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         Time.timeScale = 1f;
+
+        // 전역 이벤트 먼저 호출 (PlayerManager 상태 리셋 등)
         OnSceneChange?.Invoke();
+
+        // 새 Context 탐색 및 초기화 (씬별 설정 적용)
+        _currentContext = FindFirstObjectByType<BaseSceneContext>();
+        if (_currentContext != null)
+        {
+            _currentContext.OnSceneEnter();
+        }
+
         _fadeUI.FadeOut();
     }
 
-    public void TransitionToMap(MapData targetMap, GameObject player)
-    {
-        if (_isTransitioning == true) return;
-        _isTransitioning = true;
-
-        CurrentMap = targetMap;
-
-        targetMap.SavePlayerState(player);
-
-        if (targetMap.RespawnSpot != null)
-        {
-            // 부활 위치만 뒤에서 갱신해두고 플레이어 트랜스폼 강제 이동(텔레포트) 삭제
-            respawnSpot = targetMap.RespawnSpot.gameObject;
-        }
-
-        // 맵 전환 쿨다운 및 카메라 스무스 이동 시작
-        StartCoroutine(SmoothCameraTransition(targetMap));
-    }
-
-    private IEnumerator SmoothCameraTransition(MapData targetMap)
-    {
-        Time.timeScale = 0f;
-
-        MouseCursorTracker cursorTracker = FindFirstObjectByType<MouseCursorTracker>();
-        if (cursorTracker != null)
-        {
-            cursorTracker.EnableTrail(false);
-        }
-
-        if (targetMap.CameraPosition != null)
-        {
-            CameraMovement camMove = Camera.main.GetComponent<CameraMovement>();
-            if (camMove != null)
-            {
-                // 페이드 인 아웃 없이 타겟 오프셋 무시하고 _cameraPosition 으로 이동 지시
-                camMove.SetTarget(targetMap.CameraPosition, true);
-                
-                // 자연스러운 카메라 랜딩을 위해 속도가 줄어들 때까지 대기
-                yield return new WaitForSecondsRealtime(0.1f);
-                while (camMove.CurrentVelocity.sqrMagnitude > 0.05f)
-                {
-                    yield return null;
-                }
-            }
-            else
-            {
-                yield return new WaitForSecondsRealtime(1.0f);
-            }
-        }
-        else
-        {
-            // 타겟 카메라 포지션이 없다면 기본 쿨다운
-            yield return new WaitForSecondsRealtime(1.0f);
-        }
-
-        if (cursorTracker != null)
-        {
-            cursorTracker.EnableTrail(true);
-        }
-
-        Time.timeScale = 1f;
-        _isTransitioning = false;
-    }
-
-    private void HandlePlayerDeath(PlayerManager player)
-    {
-        StartCoroutine(DeathSequenceRoutine(player));
-    }
-
-    private IEnumerator DeathSequenceRoutine(PlayerManager player)
-    {
-        levelData.AddDeathCount();
-
-        bool isFadeInComplete = false;
-        _fadeUI.FadeIn(() => isFadeInComplete = true);
-        yield return new WaitUntil(() => isFadeInComplete == true);
-
-        PlayerRespawn(player);
-        player.ResetPlayerState();
-
-        yield return new WaitForSeconds(0.2f);
-
-        bool isFadeOutComplete = false;
-        _fadeUI.FadeOut(() => isFadeOutComplete = true);
-        yield return new WaitUntil(() => isFadeOutComplete == true);
-    }
-
-    public void PlayerRespawn(PlayerManager player)
-    {
-        if (respawnSpot == null)
-        {
-            respawnSpot = myRespawnSpot;
-        }
-
-        player.transform.position = respawnSpot.transform.position;
-
-        if (CurrentMap != null)
-        {
-            CurrentMap.MapReset(player.gameObject);
-        }
-    }
-
-    public void StageClear()
-    {
-        Time.timeScale = 0f;
-
-        OnStageClear?.Invoke(levelData);
-
-        levelData.LevelClear(currentTime);
-
-        Cursor.visible = true;
-    }
-
+    // ── 씬 전환 ──
     public void LoadSceneWithFade(string sceneName)
     {
         StartCoroutine(LoadSceneWithFadeRoutine(sceneName));
     }
 
+    public void LoadTitleScene()
+    {
+        SceneManager.LoadScene("_Title");
+    }
+
     private IEnumerator LoadSceneWithFadeRoutine(string sceneName)
     {
+        // 현재 Context 정리 (씬 전환 전)
+        if (_currentContext != null)
+        {
+            _currentContext.OnSceneExit();
+            _currentContext = null;
+        }
+
         if (_fadeUI != null)
         {
             bool isFadeInComplete = false;

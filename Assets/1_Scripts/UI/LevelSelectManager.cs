@@ -1,26 +1,33 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
-public class LevelSelectManager : MonoBehaviour
+
+public class LevelSelectManager : MonoBehaviour, IInteractable
 {
     public static LevelSelectManager Instance { get; private set; }
 
     public List<LevelData> levels = new List<LevelData>();
     public int levelIndex = -1;
 
+    [SerializeField] private CanvasGroup _levelSelectUI;
     [SerializeField] private RectTransform _contentViewUI;
 
-    [SerializeField] private LevelSelectUI _levelSelectUI;
-    [SerializeField] private RectTransform _SelectUI;
+    [SerializeField] private LevelInfoUI _levelInfoUI;
+    [SerializeField] private RectTransform _SelectEffectUI;
     private CanvasGroup _selectUICanvasGroup;
+
+    [SerializeField] private LevelSelectPageUI levelSelectPageUI;
+
     private bool _isUIActive = false;
 
     [Header("Movement Settings")]
     [SerializeField] private float _smoothTime = 0.2f;
     private Vector2 _targetPosition;
     private Vector2 _currentVelocity = Vector2.zero;
+
+    [Header("Portal Settings")]
+    [SerializeField] private LobbyPortalLook portalLook;
 
     public bool IsUIActive => _isUIActive;
 
@@ -29,16 +36,9 @@ public class LevelSelectManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
-        _selectUICanvasGroup = _SelectUI.GetComponentInChildren<CanvasGroup>();
+        _selectUICanvasGroup = _SelectEffectUI.GetComponentInChildren<CanvasGroup>();
 
         _targetPosition = _contentViewUI.anchoredPosition;
-
-        Cursor.visible = true;
-    }
-
-    void OnEnable()
-    {
-        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     private void Update()
@@ -57,63 +57,112 @@ public class LevelSelectManager : MonoBehaviour
 
         if (Mouse.current.rightButton.wasPressedThisFrame == true)
         {
-            CloseLevelUI();
-            DisableSelectUI();
+            CloseLevelInfoUI();
+            DisableSelectEffectUI();
             return;
         }
     }
 
-    public void OpenLevelUI(LevelSelectObject selectedObject)
+    public void OpenLevelInfoUI(LevelSelectObject selectedObject)
     {
-        if (_levelSelectUI == null) return;
+        if (_levelInfoUI == null) return;
 
         _isUIActive = true;
 
-        _levelSelectUI.ToggleUI(true, selectedObject.Rect);
-        _levelSelectUI.UpdateUI(selectedObject.LevelData);
-
+        _levelInfoUI.ToggleUI(true, selectedObject.Rect);
+        _levelInfoUI.UpdateUI(selectedObject.LevelData);
+        _levelInfoUI.icon = selectedObject._icon;
         levelIndex = selectedObject.LevelIndex;
 
         _targetPosition = new Vector2(levelIndex * -500 + -100, 0);
     }
 
-    public void CloseLevelUI()
+    public void CloseLevelInfoUI()
     {
-        if (_levelSelectUI == null) return;
+        if (_levelInfoUI == null) return;
 
         _isUIActive = false;
 
-        _levelSelectUI.ToggleUI(false);
+        _levelInfoUI.ToggleUI(false);
     }
 
-    public void EnableSelectUI(RectTransform targetRect)
+    public void EnableSelectEffectUI(RectTransform targetRect)
     {
-        _SelectUI.anchoredPosition = targetRect.anchoredPosition + new Vector2(-30, 0);
+        _SelectEffectUI.anchoredPosition = targetRect.anchoredPosition + new Vector2(-30, 0);
         _selectUICanvasGroup.alpha = 1f;
         _selectUICanvasGroup.interactable = false;
+        _selectUICanvasGroup.blocksRaycasts = false;
     }
 
-    public void DisableSelectUI()
+    public void DisableSelectEffectUI()
     {
         _selectUICanvasGroup.alpha = 0f;
         _selectUICanvasGroup.interactable = false;
+        _selectUICanvasGroup.blocksRaycasts = false;
     }
 
-    public void OnEnterButtonClicked(string sceneName)
+    private string _selectedSceneName;
+
+    /// <summary>
+    /// 버튼에 연결하여 레벨 정보를 저장합니다.
+    /// </summary>
+    public void OnSelectButtonClicked(LevelData levelData, Sprite icon)
     {
-        if (levelIndex == -1) return;
-
-        if (string.IsNullOrEmpty(sceneName) == false)
+        if (levelData == null)
         {
-            GameManager.Instance.LoadSceneWithFade(sceneName);
+            portalLook.DeactivePortalLook();
+            return; 
         }
+
+        levelSelectPageUI.UpdateUI(true, levelData.LevelName, icon);
+
+        _selectedSceneName = levelData.SceneName;
+        portalLook.ActivePortalLook();
+        DisableSelectEffectUI();
+        CloseLevelInfoUI();
+
+        _levelSelectUI.alpha = 0f;
+        _levelSelectUI.interactable = false;
+        _levelSelectUI.blocksRaycasts = false;
     }
 
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    public void OnReturnToSelectClicked()
     {
-        if(levels != null && levelIndex >= 0 && levelIndex < levels.Count)
-        {
-            GameManager.Instance.levelData = levels[levelIndex];
-        }
+        _levelSelectUI.alpha = 1f;
+        _levelSelectUI.interactable = true;
+        _levelSelectUI.blocksRaycasts = true;
+
+        levelSelectPageUI.UpdateUI(false);
+        portalLook.DeactivePortalLook();
     }
+
+    /// <summary>
+    /// 플레이어가 상호작용 영역 안에서 키 입력 시 호출됩니다.
+    /// 저장된 씬으로 전환합니다.
+    /// </summary>
+    public void OnEnterKeyInput()
+    {
+        if (string.IsNullOrEmpty(_selectedSceneName) == true) return;
+
+        GameManager.Instance.LoadSceneWithFade(_selectedSceneName);
+    }
+
+    #region IInteractable
+
+    public void Interact()
+    {
+        OnEnterKeyInput();
+    }
+
+    public void OnEnterRange()
+    {
+        // 힌트 UI는 InteractionTrigger의 World Canvas에서 관리됩니다.
+    }
+
+    public void OnExitRange()
+    {
+        // 힌트 UI는 InteractionTrigger의 World Canvas에서 관리됩니다.
+    }
+
+    #endregion
 }

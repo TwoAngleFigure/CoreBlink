@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 
 public class MouseCursorTracker : MonoBehaviour
 {
+    public static MouseCursorTracker Instance { get; private set; }
     [Header("Settings")]
     [SerializeField] private Camera _mainCamera;
     [SerializeField] private float _zDepth = 0f;
@@ -15,6 +16,12 @@ public class MouseCursorTracker : MonoBehaviour
     [SerializeField] private TrailRenderer _trailRenderer;
     [SerializeField] private Color _normalColor = Color.white;
     [SerializeField] private Color _detectColor = Color.cyan;
+
+    [Header("Ability Particle")]
+    [SerializeField] private ParticleSystem _abilityParticle;
+    [SerializeField] private Color _defaultColor = Color.white;
+
+    private Color _abilityColor;
 
     private bool _isDetecting = false;
 
@@ -32,6 +39,7 @@ public class MouseCursorTracker : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
         DontDestroyOnLoad(this);
         FindMainCamera();
     }
@@ -39,6 +47,13 @@ public class MouseCursorTracker : MonoBehaviour
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
+        FindMainCamera();
+
+        // 재활성화 시 이전 위치의 트레일 잔상 제거
+        if (_trailRenderer != null)
+        {
+            _trailRenderer.Clear();
+        }
     }
 
     private void OnDisable()
@@ -56,7 +71,7 @@ public class MouseCursorTracker : MonoBehaviour
         _mainCamera = Camera.main;
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
         FollowMouseCursor();
         CheckObjectDetection();
@@ -102,7 +117,7 @@ public class MouseCursorTracker : MonoBehaviour
                     Debug.Log($"LevelSelectObject detected on: {selection.name}");
                     if (LevelSelectManager.Instance != null)
                     {
-                        LevelSelectManager.Instance.OpenLevelUI(selection);
+                        LevelSelectManager.Instance.OpenLevelInfoUI(selection);
                     }
                 }
                 else
@@ -122,4 +137,51 @@ public class MouseCursorTracker : MonoBehaviour
         Gizmos.color = _isDetecting == true ? _detectColor : _normalColor;
         Gizmos.DrawRay(transform.position, Vector3.forward * _rayDistance);
     }
+
+    #region Ability Particle Color
+
+    /// <summary>
+    /// 어빌리티 타입에 따라 파티클 색상을 변경합니다.
+    /// PlayerManager.PlayerChangeAbillity()에서 호출됩니다.
+    /// </summary>
+    public void SetAbilityColor(AbillityType type)
+    {
+        switch (type)
+        {
+            case AbillityType.None:
+                _abilityColor = _defaultColor;
+                break;
+            case AbillityType.Dash:
+                _abilityColor = new Color(0f, 0.83f, 1f); // #00D3FF
+                break;
+            default:
+                _abilityColor = _defaultColor;
+                break;
+        }
+
+        ApplyParticleColor(_abilityColor);
+    }
+
+    /// <summary>
+    /// 어빌리티 사용 가능 여부에 따라 파티클 색상을 전환합니다.
+    /// hasUsed == true → 기본색 (사용 불가 표현)
+    /// hasUsed == false → 어빌리티색 (사용 가능 표현)
+    /// </summary>
+    public void UpdateAbilityColorState(bool hasUsed)
+    {
+        if (_abilityParticle == null) return;
+
+        Color targetColor = hasUsed ? _defaultColor : _abilityColor;
+        ApplyParticleColor(targetColor);
+    }
+
+    private void ApplyParticleColor(Color color)
+    {
+        if (_abilityParticle == null) return;
+
+        var main = _abilityParticle.main;
+        main.startColor = color;
+    }
+
+    #endregion
 }

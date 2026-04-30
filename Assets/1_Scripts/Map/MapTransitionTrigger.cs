@@ -6,23 +6,33 @@ public class MapTransitionTrigger : MonoBehaviour
     [SerializeField] MapData _targetMap;
     
     MapData _ownerMap;
+    IGameplaySceneHandler _gameplayHandler;
 
     public void SetOwnerMap(MapData ownerMap)
     {
         _ownerMap = ownerMap;
     }
 
+    private void Start()
+    {
+        // SceneContext 캐싱 — IGameplaySceneHandler를 통해 LevelSceneContext와
+        // TutorialSceneContext 모두 호환
+        _gameplayHandler = GameManager.Instance.CurrentContext as IGameplaySceneHandler;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.layer == 7) // Player Layer
         {
+            if (_gameplayHandler == null) return;
+
             // 현재 플레이어가 있는 맵이 아니면 발동 무시
-            if (GameManager.Instance.CurrentMap != null && GameManager.Instance.CurrentMap != _ownerMap)
+            if (_gameplayHandler.CurrentMap != null && _gameplayHandler.CurrentMap != _ownerMap)
             {
                 return;
             }
 
-            GameManager.Instance.TransitionToMap(_targetMap, other.gameObject);
+            _gameplayHandler.TransitionToMap(_targetMap, other.gameObject);
         }
     }
 

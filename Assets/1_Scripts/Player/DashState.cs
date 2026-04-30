@@ -44,6 +44,9 @@ public class DashState : BaseMovementState
         Rigi.useGravity = false;
         Rigi.linearDamping = 0f;
         Rigi.linearVelocity = Vector3.zero;
+
+        // 잔상 효과 시작
+        OnAfterimageStart?.Invoke();
     }
 
     public override void Movement()
@@ -72,6 +75,9 @@ public class DashState : BaseMovementState
         IsAbilityActive = false;
         Rigi.useGravity = true;
         Rigi.linearDamping = 1f; // 원래 값으로 복원 (필요 시 조정)
+
+        // 잔상 효과 종료
+        OnAfterimageStop?.Invoke();
     }
 
     public override void FreezeMovement()

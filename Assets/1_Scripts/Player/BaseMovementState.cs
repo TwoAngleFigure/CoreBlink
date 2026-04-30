@@ -1,14 +1,20 @@
+using System;
 using UnityEngine;
 
 public abstract class BaseMovementState
 {
     InputData _inputData;
 
+    public Action OnAfterimageStart;
+    public Action OnAfterimageStop;
+
     [Header("Option")]
     [SerializeField]
     float _moveSpeed = 150f;
     [SerializeField]
     float _maxSpeed = 10f;
+    [SerializeField]
+    float _groundFriction = 15f;
 
     [Header("Jump")]
     [SerializeField] float _jumpVelocity      = 20f;   // 점프 초기 수직 속도 (임펄스)
@@ -34,6 +40,11 @@ public abstract class BaseMovementState
         set => _hasAirAbilityUsed = value;
     }
 
+    /// <summary>
+    /// 외부 읽기 전용 접근자. PlayerManager에서 어빌리티 사용 여부를 확인합니다.
+    /// </summary>
+    public bool IsAirAbilityUsed => _hasAirAbilityUsed;
+
     protected Rigidbody     Rigi                => _inputData.rigi;
     protected Vector2       InputVector         => _inputData.inputVector;
     protected PlayerState   PlayerState         => _inputData.playerState;
@@ -54,7 +65,15 @@ public abstract class BaseMovementState
             _hasAirAbilityUsed = false;
         }
 
-        if(_inputData.inputVector.sqrMagnitude < 0.01f) return;
+        if(_inputData.inputVector.sqrMagnitude < 0.01f)
+        {
+            // 지면에 있을 때만 마찰력 적용, 공중에서는 기존 관성 유지
+            if (PlayerState == PlayerState.Idle)
+            {
+                ApplyGroundFriction();
+            }
+            return;
+        }
 
         Vector3 forceDirection = new Vector3(InputVector.normalized.x, 0f, InputVector.normalized.y);
         Vector3 force = forceDirection * _moveSpeed;
@@ -127,6 +146,24 @@ public abstract class BaseMovementState
         float fallMultiplier = Mathf.Lerp(_maxFallMultiplier, _minFallMultiplier, ratio);
 
         Rigi.AddForce(Vector3.down * fallMultiplier, ForceMode.Acceleration);
+    }
+
+    private void ApplyGroundFriction()
+    {
+        if (Rigi.isKinematic) return;
+
+        Vector3 velocityXZ = new Vector3(Rigi.linearVelocity.x, 0f, Rigi.linearVelocity.z);
+
+        // 속도가 거의 0이면 완전 정지 (미세 떨림 방지)
+        if (velocityXZ.sqrMagnitude < 0.01f)
+        {
+            Rigi.linearVelocity = new Vector3(0f, Rigi.linearVelocity.y, 0f);
+            return;
+        }
+
+        // 현재 이동 방향의 반대로 감속 힘 적용
+        Vector3 frictionForce = -velocityXZ.normalized * _groundFriction;
+        Rigi.AddForce(frictionForce, ForceMode.Acceleration);
     }
 
     public abstract void Ability();

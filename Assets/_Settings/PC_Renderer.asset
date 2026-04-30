@@ -71,7 +71,7 @@ MonoBehaviour:
   m_Active: 1
   settings:
     renderPassEvent: 550
-    screenHeight: 400
+    screenHeight: 360
   shader: {fileID: 4800000, guid: 442b0702108986347a34b8d81ff07077, type: 3}
 --- !u!114 &7833122117494664109
 MonoBehaviour:
